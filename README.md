@@ -30,7 +30,7 @@ Add to your `pubspec.yaml`:
 dependencies:
   limited_video_recorder:
     git:
-      url: https://github.com/your-username/limited_video_recorder.git
+      url: https://github.com/sgsm74/limited_video_recorder.git
       ref: main
 ```
 
@@ -101,7 +101,7 @@ If targeting Android 13+, add runtime permission handling.
 
 ## 🧑‍💻 Author
 
-Developed by **[Saeed Qasemi](https://saeedqasemi.ir)**  
+Developed by **[Saeed Ghasemi](https://saeedqasemi.ir)**  
 Feel free to contribute, suggest features, or report bugs!
 
 ---
