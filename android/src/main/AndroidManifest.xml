@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="ir.saeedqasemi.limited_video_recorder">
+  <application>
+        <activity android:name=".CameraPreviewActivity"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:exported="false" />
+    </application>
+</manifest>
