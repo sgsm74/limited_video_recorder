@@ -1,3 +1,6 @@
+[![pub version](https://img.shields.io/pub/v/limited_video_recorder.svg)](https://pub.dev/packages/limited_video_recorder)
+[![GitHub stars](https://img.shields.io/github/stars/saeedqasemi/limited_video_recorder)](https://github.com/saeedqasemi/limited_video_recorder/stargazers)
+
 # limited_video_recorder
 
 🎥 A Flutter plugin to record videos with customizable limits on **file size**, **duration**, **resolution**, **bitrate**, and **frame rate**.
