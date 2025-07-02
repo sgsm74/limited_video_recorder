@@ -2,6 +2,8 @@ name: limited_video_recorder
 description: "A Flutter plugin for video recording with file size, duration, resolution, and bitrate limits."
 version: 0.0.1
 homepage: https://saeedqasemi.ir
+repository: https://github.com/sgsm74/limited_video_recorder
+issue_tracker: https://github.com/sgsm74/limited_video_recorder/issues
 
 environment:
   sdk: ^3.7.2
