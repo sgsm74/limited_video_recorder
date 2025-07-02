@@ -106,9 +106,3 @@ If targeting Android 13+, add runtime permission handling.
 
 Developed by **[Saeed Ghasemi](https://saeedqasemi.ir)**  
 Feel free to contribute, suggest features, or report bugs!
-
----
-
-## 📄 License
-
-MIT License © 2025 Saeed Qasemi
