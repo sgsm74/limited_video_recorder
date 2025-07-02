@@ -1,5 +1,5 @@
 [![pub version](https://img.shields.io/pub/v/limited_video_recorder.svg)](https://pub.dev/packages/limited_video_recorder)
-[![GitHub stars](https://img.shields.io/github/stars/saeedqasemi/limited_video_recorder)](https://github.com/saeedqasemi/limited_video_recorder/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/sgsm74/limited_video_recorder)](https://github.com/sgsm74/limited_video_recorder/stargazers)
 
 # limited_video_recorder
 
