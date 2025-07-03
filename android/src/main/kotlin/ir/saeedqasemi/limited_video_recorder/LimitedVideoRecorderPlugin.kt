@@ -1,17 +1,26 @@
-/**
- * Flutter plugin implementation for recording videos on Android with configurable limits.
- *
- * This plugin uses the Camera2 API and MediaRecorder to enable video recording with:
- * - Custom resolution
- * - Frame rate
- * - Bitrate
- * - Maximum file size
- * - Maximum duration
- *
- * It also integrates a native Android preview via Platform Views.
- *
- * Channel: "limited_video_recorder"
- */
+package ir.saeedqasemi.limited_video_recorder
+
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
+import android.hardware.camera2.*
+import android.media.MediaRecorder
+import android.os.Environment
+import android.os.Handler
+import android.os.HandlerThread
+import android.util.Log
+import android.view.Surface
+import androidx.core.app.ActivityCompat
+import java.io.File
+import android.content.Intent
+import android.os.Looper
+
 class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
 
     // Communication channel between Dart and Android
@@ -116,6 +125,11 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             return
         }
 
+        if (mediaRecorder != null) {
+            result.error("ALREADY_RECORDING", "Recording is already in progress", null)
+            return
+        }
+
         mediaRecorder = MediaRecorder().apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
@@ -152,6 +166,10 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         videoFilePath = file.absolutePath
 
         val previewSurface = previewFactory.currentPreviewSurface
+        if (previewSurface == null) {
+            result.error("NO_SURFACE", "Preview surface is not ready", null)
+            return
+        }
         val recordingSurface = mediaRecorder!!.surface
         val surfaces = listOf(previewSurface, recordingSurface)
 
@@ -179,6 +197,7 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
      */
     private fun stopRecording(result: MethodChannel.Result?) {
         if (mediaRecorder == null) {
+            Log.d(TAG, "MediaRecorder is null, already stopped or not started")
             result?.success("Already stopped or not started")
             return
         }
@@ -190,20 +209,40 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                 reset()
                 release()
             }
+            mediaRecorder = null
             Log.d(TAG, "MediaRecorder stopped and released")
         } catch (e: Exception) {
-            videoFilePath?.let { File(it).delete() }
+            videoFilePath?.let {
+                Log.d(TAG, "Deleting video file: $it")
+                File(it).delete()
+            }
+            Log.e(TAG, "Failed to stop media recorder: ${e.message}")
             result?.error("STOP_FAILED", "Failed to stop media recorder: ${e.message}", null)
+            // Try to release other resources even if MediaRecorder stop failed
         } finally {
-            captureSession?.close()
-            captureSession = null
-            cameraDevice?.close()
-            cameraDevice = null
+            try {
+                captureSession?.apply {
+                    stopRepeating()
+                    abortCaptures()
+                    close()
+                }
+                captureSession = null
+            } catch (e: CameraAccessException) {
+                Log.e(TAG, "Failed to stop/close capture session: ${e.message}")
+            }
+
+            try {
+                cameraDevice?.close()
+                cameraDevice = null
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to close camera device: ${e.message}")
+            }
 
             handlerThread?.quitSafely()
             handlerThread = null
             handler = null
 
+            Log.d(TAG, "All camera/recording resources released")
             result?.success(videoFilePath)
         }
     }
