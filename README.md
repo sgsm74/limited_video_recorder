@@ -55,7 +55,7 @@ final config = RecordingConfig(
   videoHeight: 720,
   maxFileSize: 15 * 1024 * 1024, // 15 MB
   maxDuration: 10 * 1000, // 10 seconds
-  videoBitRate: 5_000_000,
+  videoBitRate: 5000000,
   frameRate: 30,
 );
 
@@ -99,10 +99,3 @@ If targeting Android 13+, add runtime permission handling.
 - [ ] Pause/Resume recording  
 - [ ] Manual focus / exposure controls  
 - [ ] Thumbnail generation
-
----
-
-## 🧑‍💻 Author
-
-Developed by **[Saeed Ghasemi](https://saeedqasemi.ir)**  
-Feel free to contribute, suggest features, or report bugs!
