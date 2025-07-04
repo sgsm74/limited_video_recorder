@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import java.io.File
 import android.content.Intent
 import android.os.Looper
+import ir.saeedqasemi.limited_video_recorder.RecordingConfig
 
 class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
 
@@ -70,6 +71,7 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             }
             "stopRecording" -> stopRecording(result)
             "previewCamera" -> launchCameraPreview(result)
+            "listCameras" -> listAvailableCameras(result)
             else -> {
                 Log.w(TAG, "Method not implemented: ${call.method}")
                 result.notImplemented()
@@ -246,6 +248,52 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             result?.success(videoFilePath)
         }
     }
+    /**
+    * Retrieves a list of available camera devices on the device.
+    *
+    * This method queries the system camera manager and builds a list of
+    * [CameraDescription] objects representing each available camera.
+    *
+    * You can use the camera ID returned here to start a recording with a specific camera.
+    *
+    * @return A list of [CameraDescription]s with ID, lens facing direction, and sensor orientation.
+    * @throws CameraAccessException if the camera access fails.
+    */
+    private fun listAvailableCameras(result: MethodChannel.Result) {
+        val cameraManager = context?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        if (cameraManager == null) {
+            result.error("NO_CAMERA_MANAGER", "CameraManager not available", null)
+            return
+        }
+
+        val cameraList = mutableListOf<Map<String, Any>>()
+
+        try {
+            for (id in cameraManager.cameraIdList) {
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                val orientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
+
+                val cameraInfo = mapOf(
+                    "id" to id,
+                    "lensFacing" to when (lensFacing) {
+                        CameraCharacteristics.LENS_FACING_FRONT -> "front"
+                        CameraCharacteristics.LENS_FACING_BACK -> "back"
+                        CameraCharacteristics.LENS_FACING_EXTERNAL -> "external"
+                        else -> "unknown"
+                    },
+                    "sensorOrientation" to (orientation ?: 0)
+                )
+
+                cameraList.add(cameraInfo)
+            }
+
+            result.success(cameraList)
+        } catch (e: Exception) {
+            result.error("CAMERA_LIST_ERROR", e.message, null)
+        }
+    }
+
 
     /**
      * Launches a full-screen native Android preview activity (optional).

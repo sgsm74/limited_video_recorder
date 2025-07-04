@@ -10,6 +10,9 @@
  * @property maxFileSize Optional limit on output file size in bytes.
  * @property maxDuration Optional maximum recording duration in milliseconds.
  */
+ package ir.saeedqasemi.limited_video_recorder
+ import io.flutter.plugin.common.MethodCall
+
 data class RecordingConfig(
     val videoWidth: Int = 1920,
     val videoHeight: Int = 1080,
