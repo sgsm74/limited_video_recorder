@@ -17,7 +17,8 @@ import io.flutter.plugin.platform.PlatformView
  */
 class CameraPreview(
     private val context: Context,
-    private val surfaceProvider: PreviewSurfaceProvider
+    private val surfaceProvider: PreviewSurfaceProvider,
+    private val cameraId: String
 ) : PlatformView, TextureView.SurfaceTextureListener {
 
     private val textureView: TextureView = TextureView(context)
@@ -26,12 +27,10 @@ class CameraPreview(
     private var backgroundHandler: Handler? = null
     private var backgroundThread: HandlerThread? = null
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-    private lateinit var cameraId: String
 
     init {
         textureView.surfaceTextureListener = this
         startBackgroundThread()
-        cameraId = cameraManager.cameraIdList[0]
     }
 
     /**

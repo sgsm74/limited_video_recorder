@@ -35,6 +35,8 @@ class CameraPreviewFactory(
      * @return A new instance of [CameraPreview] configured with a [PreviewSurfaceProvider].
      */
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
+        val creationParams = args as? Map<String, Any>
+        val cameraId = creationParams?.get("cameraId") as? String ?: "0"
         return CameraPreview(context, object : PreviewSurfaceProvider {
 
             // Called when the surface is created and ready to be used
@@ -46,6 +48,8 @@ class CameraPreviewFactory(
             override fun onSurfaceDestroyed() {
                 currentPreviewSurface = null
             }
-        })
+        },
+        cameraId
+        )
     }
 }

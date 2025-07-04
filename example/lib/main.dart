@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:limited_video_recorder/camera_description.dart';
+import 'package:limited_video_recorder/camera_preview.dart';
 import 'package:limited_video_recorder/limited_video_recorder_config.dart';
 import 'package:limited_video_recorder/limited_video_recorder_controller.dart';
 import 'package:video_player/video_player.dart';
@@ -30,7 +32,7 @@ class _VideoRecorderPageState extends State<VideoRecorderPage> {
   String statusText = "Ready to record";
   VideoPlayerController? _controller;
   final recorder = LimitedVideoRecorderController();
-
+  List<CameraDescription> cameras = [];
   Duration? videoDuration;
   int? videoWidth;
   int? videoHeight;
@@ -39,7 +41,7 @@ class _VideoRecorderPageState extends State<VideoRecorderPage> {
 
   Future<void> startRecording() async {
     try {
-      final config = RecordingConfig(videoWidth: 1280, videoHeight: 720, maxFileSize: 1 * 1024 * 1024, maxDuration: 5 * 1000);
+      final config = RecordingConfig(videoWidth: 1280, videoHeight: 720, maxFileSize: 10 * 1024 * 1024, maxDuration: 5 * 1000, cameraId: 1);
       await recorder.start(config: config);
 
       setState(() {
@@ -99,9 +101,20 @@ class _VideoRecorderPageState extends State<VideoRecorderPage> {
     });
   }
 
+  Future<void> listCameras() async {
+    try {
+      cameras = await recorder.listAvailableCameras();
+    } catch (e) {
+      setState(() {
+        statusText = "Error stopping recording: $e";
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    listCameras();
     recorder.onRecordingComplete((String path) {
       _loadVideo(path);
     });
@@ -176,7 +189,7 @@ class _VideoRecorderPageState extends State<VideoRecorderPage> {
                   ],
                 ),
               ),
-            if (videoPath == null) Expanded(child: AndroidView(viewType: 'camera_preview', layoutDirection: TextDirection.ltr)),
+            if (videoPath == null) Expanded(child: CameraPreview(cameraId: 1)),
             const SizedBox(height: 10),
             if (!isRecording) ElevatedButton(onPressed: startRecording, child: const Text('Start Recording')),
             if (isRecording && videoPath == null) ElevatedButton(onPressed: stopRecording, child: const Text('Stop Recording')),

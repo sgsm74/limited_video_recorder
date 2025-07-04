@@ -19,7 +19,8 @@ data class RecordingConfig(
     val videoBitRate: Int = 5_000_000,
     val frameRate: Int = 30,
     val maxFileSize: Long = 10 * 1024 * 1024,
-    val maxDuration: Int = 0
+    val maxDuration: Int = 0,
+    val cameraId: Int = 0
 ) {
     companion object {
         /**
@@ -33,7 +34,8 @@ data class RecordingConfig(
             videoBitRate = call.argument<Int>("videoBitRate") ?: 5_000_000,
             frameRate = call.argument<Int>("frameRate") ?: 30,
             maxFileSize = (call.argument<Int>("maxFileSize") ?: 10_000_000).toLong(),
-            maxDuration = call.argument<Int>("maxDuration") ?: 0
+            maxDuration = call.argument<Int>("maxDuration") ?: 0,
+            cameraId = call.argument<Int>("cameraId") ?: 0
         )
     }
 }

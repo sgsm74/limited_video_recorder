@@ -86,7 +86,9 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         if (!requestCameraPermissions(result)) return
 
         val cameraManager = context?.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cameraId = cameraManager.cameraIdList[0]
+        cameraId = config.cameraId.toString()
+
+
 
         if (handlerThread == null || !handlerThread!!.isAlive) {
             handlerThread = HandlerThread("CameraBackground").apply { start() }
