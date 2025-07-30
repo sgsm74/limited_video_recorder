@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import java.io.File
 import android.content.Intent
 import android.os.Looper
+import androidx.core.content.ContextCompat
 
 class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
     private lateinit var channel: MethodChannel
@@ -36,7 +37,11 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     private var videoFilePath: String? = null
     private val TAG = "LimitedVideoRecorder"
     private var isRecording = false
-
+    private val REQUIRED_PERMISSIONS = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO
+    )
+    private val PERMISSION_REQUEST_CODE = 1001
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "limited_video_recorder")
@@ -49,6 +54,11 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         when (call.method) {
             "startRecording" -> {
                 config = RecordingConfig.fromCall(call)
+                if (!hasPermissions(context!!)) {
+                    requestPermissions()
+                    result.error("PERMISSION_DENIED", "Camera and audio permissions are required", null)
+                    return
+                }
                 val previewSurface = previewFactory.currentPreviewSurface
                 if (previewSurface == null) {
                     result.error("NO_SURFACE", "Preview surface is not ready", null)
@@ -265,12 +275,34 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             result.error("NO_ACTIVITY", "Activity is not attached", null)
             return false
         }
-        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(context!!, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            result.error("PERMISSION_DENIED", "Camera or audio permission not granted", null)
-            return false
+
+        val missingPermissions = mutableListOf<String>()
+
+        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            missingPermissions.add(Manifest.permission.CAMERA)
         }
-        return true
+
+        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            missingPermissions.add(Manifest.permission.RECORD_AUDIO)
+        }
+
+        return if (missingPermissions.isEmpty()) {
+            true
+        } else {
+            ActivityCompat.requestPermissions(activity!!, missingPermissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+            result.error("PERMISSION_REQUEST", "Requesting permissions", null)
+            false
+        }
+    }
+
+    private fun hasPermissions(context: Context): Boolean {
+        return REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    private fun requestPermissions() {
+        ActivityCompat.requestPermissions(activity!!, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE)
     }
 }
 
