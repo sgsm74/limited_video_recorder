@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'camera_description.dart';
 import 'limited_video_recorder_config.dart';
 
 class LimitedVideoRecorderController {
@@ -42,6 +43,11 @@ class LimitedVideoRecorderController {
 
   void dispose() {
     _onComplete = null;
+  }
+
+  Future<List<CameraDescription>> listAvailableCameras() async {
+    final List<dynamic> cameras = await _channel.invokeMethod('listCameras');
+    return cameras.map((cam) => CameraDescription.fromMap(Map<String, dynamic>.from(cam))).toList();
   }
 
   bool get isRecording => _isRecording;

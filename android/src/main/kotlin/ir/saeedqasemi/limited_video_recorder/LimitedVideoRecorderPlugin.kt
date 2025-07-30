@@ -21,20 +21,30 @@ import java.io.File
 import android.content.Intent
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import ir.saeedqasemi.limited_video_recorder.RecordingConfig
 
 class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
+
+    // Communication channel between Dart and Android
     private lateinit var channel: MethodChannel
+
+    // Flutter Activity & Context references
     private var activity: Activity? = null
     private var context: Context? = null
+
+    // Camera and recording components
     private var cameraDevice: CameraDevice? = null
     private var mediaRecorder: MediaRecorder? = null
     private var captureSession: CameraCaptureSession? = null
-    private var cameraId: String = ""
+    private lateinit var previewFactory: CameraPreviewFactory
+
+    private var videoFilePath: String? = null
+    private var isRecording = false
+
     private var handler: Handler? = null
     private var handlerThread: HandlerThread? = null
     private var config = RecordingConfig()
-    lateinit var previewFactory: CameraPreviewFactory
-    private var videoFilePath: String? = null
+    private var cameraId: String = ""
     private val TAG = "LimitedVideoRecorder"
     private var isRecording = false
     private val REQUIRED_PERMISSIONS = arrayOf(
@@ -46,10 +56,13 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         context = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, "limited_video_recorder")
         channel.setMethodCallHandler(this)
+
+        // Register camera preview platform view
         previewFactory = CameraPreviewFactory(binding.binaryMessenger)
         binding.platformViewRegistry.registerViewFactory("camera_preview", previewFactory)
     }
 
+    // Handles incoming method calls from Dart
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "startRecording" -> {
@@ -66,12 +79,9 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                 }
                 startCamera(result)
             }
-            "stopRecording" -> {
-                stopRecording(result)
-            }
-            "previewCamera" -> {
-                launchCameraPreview(result)
-            }
+            "stopRecording" -> stopRecording(result)
+            "previewCamera" -> launchCameraPreview(result)
+            "listCameras" -> listAvailableCameras(result)
             else -> {
                 Log.w(TAG, "Method not implemented: ${call.method}")
                 result.notImplemented()
@@ -79,17 +89,20 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         }
     }
 
+    /**
+     * Starts the camera and prepares for recording.
+     */
     private fun startCamera(result: MethodChannel.Result) {
         if (!requestCameraPermissions(result)) return
 
         val cameraManager = context?.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cameraId = cameraManager.cameraIdList[0] // Assuming the first camera is the back camera, change if needed
+        cameraId = config.cameraId.toString()
+
+
 
         if (handlerThread == null || !handlerThread!!.isAlive) {
-            handlerThread = HandlerThread("CameraBackground")
-            handlerThread?.start()
+            handlerThread = HandlerThread("CameraBackground").apply { start() }
             handler = Handler(handlerThread!!.looper)
-            Log.d(TAG, "HandlerThread started")
         }
 
         cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
@@ -108,11 +121,15 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         }, handler)
     }
 
+    /**
+     * Starts video recording using MediaRecorder with given config.
+     */
     private fun startRecording(result: MethodChannel.Result) {
         if (isRecording) {
             result.error("ALREADY_RECORDING", "Recording is already in progress", null)
             return
         }
+
         isRecording = true
         val fileName = "video_${System.currentTimeMillis()}.mp4"
         val file = context?.getExternalFilesDir(Environment.DIRECTORY_MOVIES)?.let {
@@ -121,6 +138,7 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             result.error("FILE_ERROR", "Unable to get output file", null)
             return
         }
+
         if (mediaRecorder != null) {
             result.error("ALREADY_RECORDING", "Recording is already in progress", null)
             return
@@ -140,13 +158,15 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             if (config.maxDuration > 0) setMaxDuration(config.maxDuration)
             setOnInfoListener { _, what, _ ->
                 if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED ||
-                    what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+                    what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED
+                ) {
                     activity?.runOnUiThread {
                         stopRecording(null)
                         channel.invokeMethod("recordingComplete", file.absolutePath)
                     }
                 }
             }
+
             try {
                 prepare()
                 Log.d(TAG, "MediaRecorder prepared")
@@ -156,14 +176,15 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                 return
             }
         }
+
         videoFilePath = file.absolutePath
+
         val previewSurface = previewFactory.currentPreviewSurface
         if (previewSurface == null) {
             result.error("NO_SURFACE", "Preview surface is not ready", null)
             return
         }
         val recordingSurface = mediaRecorder!!.surface
-
         val surfaces = listOf(previewSurface, recordingSurface)
 
         cameraDevice?.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
@@ -171,12 +192,11 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                 captureSession = session
 
                 val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-                builder.addTarget(previewSurface)
+                builder.addTarget(previewSurface!!)
                 builder.addTarget(recordingSurface)
 
                 session.setRepeatingRequest(builder.build(), null, handler)
                 mediaRecorder?.start()
-
                 result.success("Recording started")
             }
 
@@ -186,6 +206,9 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         }, handler)
     }
 
+    /**
+     * Stops recording and releases all camera/recorder resources.
+     */
     private fun stopRecording(result: MethodChannel.Result?) {
         if (mediaRecorder == null) {
             Log.d(TAG, "MediaRecorder is null, already stopped or not started")
@@ -237,14 +260,79 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
             result?.success(videoFilePath)
         }
     }
+    /**
+    * Retrieves a list of available camera devices on the device.
+    *
+    * This method queries the system camera manager and builds a list of
+    * [CameraDescription] objects representing each available camera.
+    *
+    * You can use the camera ID returned here to start a recording with a specific camera.
+    *
+    * @return A list of [CameraDescription]s with ID, lens facing direction, and sensor orientation.
+    * @throws CameraAccessException if the camera access fails.
+    */
+    private fun listAvailableCameras(result: MethodChannel.Result) {
+        val cameraManager = context?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        if (cameraManager == null) {
+            result.error("NO_CAMERA_MANAGER", "CameraManager not available", null)
+            return
+        }
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        channel.setMethodCallHandler(null)
-        handlerThread?.quitSafely()
-        handlerThread = null
-        handler = null
+        val cameraList = mutableListOf<Map<String, Any>>()
+
+        try {
+            for (id in cameraManager.cameraIdList) {
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                val lensFacing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                val orientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION)
+
+                val cameraInfo = mapOf(
+                    "id" to id,
+                    "lensFacing" to when (lensFacing) {
+                        CameraCharacteristics.LENS_FACING_FRONT -> "front"
+                        CameraCharacteristics.LENS_FACING_BACK -> "back"
+                        CameraCharacteristics.LENS_FACING_EXTERNAL -> "external"
+                        else -> "unknown"
+                    },
+                    "sensorOrientation" to (orientation ?: 0)
+                )
+
+                cameraList.add(cameraInfo)
+            }
+
+            result.success(cameraList)
+        } catch (e: Exception) {
+            result.error("CAMERA_LIST_ERROR", e.message, null)
+        }
     }
 
+
+    /**
+     * Launches a full-screen native Android preview activity (optional).
+     */
+    private fun launchCameraPreview(result: MethodChannel.Result) {
+        val intent = Intent(activity, CameraPreviewActivity::class.java)
+        activity?.startActivity(intent)
+        result.success("Preview launched")
+    }
+
+    /**
+     * Checks and requests camera/audio permissions.
+     */
+    private fun requestCameraPermissions(result: MethodChannel.Result): Boolean {
+        if (activity == null) {
+            result.error("NO_ACTIVITY", "Activity is not attached", null)
+            return false
+        }
+        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(context!!, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            result.error("PERMISSION_DENIED", "Camera or audio permission not granted", null)
+            return false
+        }
+        return true
+    }
+
+    // Flutter activity lifecycle handlers
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
     }
@@ -260,10 +348,11 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     override fun onDetachedFromActivityForConfigChanges() {
         activity = null
     }
-    private fun launchCameraPreview(result: MethodChannel.Result) {
-        val intent = Intent(activity, CameraPreviewActivity::class.java)
-        activity?.startActivity(intent)
-        result.success("Preview launched")
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+        handlerThread?.quitSafely()
+        handlerThread = null
+        handler = null
     }
 
     private fun onVideoRecorded(result: MethodChannel.Result?, path: String?) {
@@ -303,26 +392,5 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
 
     private fun requestPermissions() {
         ActivityCompat.requestPermissions(activity!!, REQUIRED_PERMISSIONS, PERMISSION_REQUEST_CODE)
-    }
-}
-
-// config class
-data class RecordingConfig(
-    val videoWidth: Int = 1920,
-    val videoHeight: Int = 1080,
-    val videoBitRate: Int = 5_000_000,
-    val frameRate: Int = 30,
-    val maxFileSize: Long = 10 * 1024 * 1024,
-    val maxDuration: Int = 0
-) {
-    companion object {
-        fun fromCall(call: MethodCall): RecordingConfig = RecordingConfig(
-            videoWidth = call.argument<Int>("videoWidth") ?: 1920,
-            videoHeight = call.argument<Int>("videoHeight") ?: 1080,
-            videoBitRate = call.argument<Int>("videoBitRate") ?: 5_000_000,
-            frameRate = call.argument<Int>("frameRate") ?: 30,
-            maxFileSize = (call.argument<Int>("maxFileSize") ?: 10_000_000).toLong(),
-            maxDuration = call.argument<Int>("maxDuration") ?: 0
-        )
     }
 }

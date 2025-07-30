@@ -1,3 +1,6 @@
+[![pub version](https://img.shields.io/pub/v/limited_video_recorder.svg)](https://pub.dev/packages/limited_video_recorder)
+[![GitHub stars](https://img.shields.io/github/stars/sgsm74/limited_video_recorder)](https://github.com/sgsm74/limited_video_recorder/stargazers)
+
 # limited_video_recorder
 
 🎥 A Flutter plugin to record videos with customizable limits on **file size**, **duration**, **resolution**, **bitrate**, and **frame rate**.
@@ -52,7 +55,7 @@ final config = RecordingConfig(
   videoHeight: 720,
   maxFileSize: 15 * 1024 * 1024, // 15 MB
   maxDuration: 10 * 1000, // 10 seconds
-  videoBitRate: 5_000_000,
+  videoBitRate: 5000000,
   frameRate: 30,
 );
 
@@ -96,16 +99,3 @@ If targeting Android 13+, add runtime permission handling.
 - [ ] Pause/Resume recording  
 - [ ] Manual focus / exposure controls  
 - [ ] Thumbnail generation
-
----
-
-## 🧑‍💻 Author
-
-Developed by **[Saeed Ghasemi](https://saeedqasemi.ir)**  
-Feel free to contribute, suggest features, or report bugs!
-
----
-
-## 📄 License
-
-MIT License © 2025 Saeed Qasemi

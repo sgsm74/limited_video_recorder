@@ -9,9 +9,16 @@ import android.view.Surface
 import android.view.TextureView
 import io.flutter.plugin.platform.PlatformView
 
+/**
+ * CameraPreview is a custom PlatformView that displays the live camera feed
+ * inside a TextureView and prepares the surface for recording or previewing video.
+ *
+ * This class bridges Android's native camera system to Flutter via PlatformView.
+ */
 class CameraPreview(
     private val context: Context,
-    private val surfaceProvider: PreviewSurfaceProvider
+    private val surfaceProvider: PreviewSurfaceProvider,
+    private val cameraId: String
 ) : PlatformView, TextureView.SurfaceTextureListener {
 
     private val textureView: TextureView = TextureView(context)
@@ -20,26 +27,36 @@ class CameraPreview(
     private var backgroundHandler: Handler? = null
     private var backgroundThread: HandlerThread? = null
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-    private lateinit var cameraId: String
 
     init {
         textureView.surfaceTextureListener = this
         startBackgroundThread()
-        cameraId = cameraManager.cameraIdList[0]
     }
 
+    /**
+     * Returns the TextureView that displays the camera preview.
+     */
     override fun getView(): TextureView = textureView
 
+    /**
+     * Disposes the camera and stops the background thread when the PlatformView is destroyed.
+     */
     override fun dispose() {
         closeCamera()
         stopBackgroundThread()
     }
 
+    /**
+     * Starts a background thread for camera operations.
+     */
     private fun startBackgroundThread() {
         backgroundThread = HandlerThread("CameraBackground").also { it.start() }
         backgroundHandler = Handler(backgroundThread!!.looper)
     }
 
+    /**
+     * Stops the background thread gracefully.
+     */
     private fun stopBackgroundThread() {
         backgroundThread?.quitSafely()
         try {
@@ -51,10 +68,13 @@ class CameraPreview(
         }
     }
 
+    /**
+     * Opens the camera and begins the preview session once permissions are granted.
+     */
     private fun openCamera() {
         try {
             if (context.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                //if permission is not granted, you should request it
+                // Permission not granted, should request from Flutter side
                 return
             }
             cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
@@ -78,12 +98,16 @@ class CameraPreview(
         }
     }
 
+    /**
+     * Starts the camera preview using the configured resolution and surface.
+     */
     private fun startPreview() {
         val texture = textureView.surfaceTexture ?: return
-        texture.setDefaultBufferSize(1920, 1080) //if you want to set a specific resolution
+        texture.setDefaultBufferSize(1920, 1080) // Set preview resolution
 
         val surface = Surface(texture)
 
+        // Notify that the surface is ready for recording/preview
         surfaceProvider.onSurfaceAvailable(surface)
 
         try {
@@ -100,8 +124,6 @@ class CameraPreview(
                 }
 
                 override fun onConfigureFailed(session: CameraCaptureSession) {
-                   // Handle configuration failure
-                    // You can notify the user or log the error
                     println("Camera configuration failed")
                 }
             }, backgroundHandler)
@@ -110,31 +132,46 @@ class CameraPreview(
         }
     }
 
+    /**
+     * Closes the camera and releases all preview resources.
+     */
     private fun closeCamera() {
         captureSession?.close()
         captureSession = null
         cameraDevice?.close()
         cameraDevice = null
 
-        // Notify the surface provider that the surface is destroyed
+        // Notify the provider that the surface is no longer available
         surfaceProvider.onSurfaceDestroyed()
     }
 
+    /**
+     * Called when the TextureView becomes available and the camera can be opened.
+     */
     override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
         openCamera()
     }
 
+    /**
+     * Called when the TextureView size changes. You can use this to adjust preview scaling.
+     */
     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
-        // Handle size changes if necessary
-        // You can adjust the preview size or other parameters here
-    
+        // No-op
     }
 
+    /**
+     * Called when the TextureView is destroyed. Releases the camera and stops the background thread.
+     */
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         closeCamera()
         stopBackgroundThread()
         return true
     }
 
-    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+    /**
+     * Called when the content of the TextureView is updated.
+     */
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+        // No-op
+    }
 }

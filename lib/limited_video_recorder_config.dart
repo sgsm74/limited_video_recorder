@@ -5,6 +5,7 @@ class RecordingConfig {
   final int frameRate;
   final int maxDuration;
   final int maxFileSize;
+  final int cameraId;
 
   const RecordingConfig({
     this.videoWidth = 1920,
@@ -13,6 +14,7 @@ class RecordingConfig {
     this.frameRate = 30,
     this.maxDuration = 0,
     this.maxFileSize = 10 * 1024 * 1024,
+    this.cameraId = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -22,5 +24,6 @@ class RecordingConfig {
     'frameRate': frameRate,
     'maxDuration': maxDuration,
     'maxFileSize': maxFileSize,
+    'cameraId': cameraId,
   };
 }
