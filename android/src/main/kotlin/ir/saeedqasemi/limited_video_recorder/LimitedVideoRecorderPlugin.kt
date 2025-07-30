@@ -46,7 +46,6 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     private var config = RecordingConfig()
     private var cameraId: String = ""
     private val TAG = "LimitedVideoRecorder"
-    private var isRecording = false
     private val REQUIRED_PERMISSIONS = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO
@@ -311,26 +310,16 @@ class LimitedVideoRecorderPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
      * Launches a full-screen native Android preview activity (optional).
      */
     private fun launchCameraPreview(result: MethodChannel.Result) {
+        if (!hasPermissions(context!!)) {
+            requestPermissions()
+            result.error("PERMISSION_DENIED", "Camera and audio permissions are required", null)
+            return
+        }
         val intent = Intent(activity, CameraPreviewActivity::class.java)
         activity?.startActivity(intent)
         result.success("Preview launched")
     }
 
-    /**
-     * Checks and requests camera/audio permissions.
-     */
-    private fun requestCameraPermissions(result: MethodChannel.Result): Boolean {
-        if (activity == null) {
-            result.error("NO_ACTIVITY", "Activity is not attached", null)
-            return false
-        }
-        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(context!!, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            result.error("PERMISSION_DENIED", "Camera or audio permission not granted", null)
-            return false
-        }
-        return true
-    }
 
     // Flutter activity lifecycle handlers
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
