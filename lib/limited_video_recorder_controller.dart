@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:video_compress/video_compress.dart';
 import 'camera_description.dart';
 import 'limited_video_recorder_config.dart';
 
@@ -25,7 +26,7 @@ class LimitedVideoRecorderController {
 
     final result = await _channel.invokeMethod<String>('stopRecording');
     _isRecording = false;
-    return result;
+    return await compress(result!);
   }
 
   void onRecordingComplete(Function(String path) callback) {
@@ -36,7 +37,7 @@ class LimitedVideoRecorderController {
     if (call.method == 'recordingComplete') {
       final path = call.arguments as String?;
       if (path != null && _onComplete != null) {
-        _onComplete!(path);
+        _onComplete!(await compress(path));
       }
     }
   }
@@ -48,6 +49,11 @@ class LimitedVideoRecorderController {
   Future<List<CameraDescription>> listAvailableCameras() async {
     final List<dynamic> cameras = await _channel.invokeMethod('listCameras');
     return cameras.map((cam) => CameraDescription.fromMap(Map<String, dynamic>.from(cam))).toList();
+  }
+
+  Future<String> compress(String inputPath) async {
+    final info = await VideoCompress.compressVideo(inputPath, quality: VideoQuality.MediumQuality, deleteOrigin: false);
+    return info!.path!;
   }
 
   bool get isRecording => _isRecording;
